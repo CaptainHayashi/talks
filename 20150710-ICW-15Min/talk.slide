@@ -2,9 +2,13 @@ Verifying a Single-Producer Stack
 16 Jul 2015
 Tags: concurrency sppool safety icap
 
-Matt Windsor
-Ph.D student, HISE, University of York
+*Matt*Windsor*
+University of York
 mbw500@york.ac.uk
+
+Mike Dodds
+University of York
+mike.dodds@york.ac.uk
 
 # Hi, I'm Matt, and I'm from the High-Integrity Systems Engineering
 # research group at the University of York.  I'm currently in my first
@@ -82,9 +86,71 @@ _getYoungest_ sweeps only taken nodes between top and youngest node, so:
 
 _Assuming_reference_counting_and_ABA_counters_
 
-* Compression fork
+* Compression
+.image fraying0.png
 
-.image compress.png
+* Compression
+.image fraying1.png
+
+* Compression
+.image fraying2.png
+
+* Challenges
+
+* The SP pool is a linked list, right?
+All the red branches have been moved out and deleted by compression…
+
+.image fraying2.png
+
+* Wrong
+Non-atomic traversals → traversals moved out _with_taken_nodes_
+
+.image fraying3.png
+
+* No data-races?
+So far the only obvious race (insert-insert) has been mitigated by SP.
+
+But… what about compression-compression?
+
+* Forwards compression data-race
+A is inserted; all between A and B taken; compression begins
+
+.image race0.png
+
+* Forwards compression data-race
+Compression sweeps to B, which is not taken
+
+.image race1.png
+
+* Forwards compression data-race
+_Context_switch_ to removal of B; all between B and C also taken
+
+.image race2.png
+
+* Forwards compression data-race
+_Context_switch_ to removal of A; new compression run sweeps to C
+
+.image race3.png
+
+* Forwards compression data-race
+If new run updates pointer first…
+
+.image race4.png
+
+* Forwards compression data-race
+…part of it is undone by old run when it resumes
+
+.image race5.png
+
+(Also a similar backwards-compression race with insertion!)
+
+* Harmless data-races
+
+Able to show that these data races don't violate invariants
+
+- such as all non-taken nodes being on spine, no cycles, etc.
+- These races only undo some compression: unwanted, but _harmless._
+- Removing them wasteful?
 
 * What am I proving, and how?
 
@@ -120,8 +186,6 @@ Higher-order concurrent separation logic based on CAP, RGSep, …, Reynolds.
 - _Interpretation_function_ from set-tuples to concrete heaps
 - _Proof_outline_ of each method
 
-* Why is the proof interesting?
-
 * The abstract state
 
 States are tuples of sets: < T, N, t, s, _P_, _T_ >
@@ -132,58 +196,7 @@ Not a deal breaker, but complicates proof.
 
 SP pool not a good fit for transition systems?: not a finite state machine.
 
-
-* Forwards compression data-race
-A is inserted; all between A and B taken; compression begins
-
-.image race0.png
-
-* Forwards compression data-race
-Compression sweeps to B, which is not taken
-
-.image race1.png
-
-* Forwards compression data-race
-_Context_switch_ to removal of B; all between B and C also taken
-
-.image race2.png
-
-* Forwards compression data-race
-_Context_switch_ to removal of A; new compression run sweeps to C
-
-.image race3.png
-
-* Forwards compression data-race
-If new run updates pointer first…
-
-.image race4.png
-
-* Forwards compression data-race
-…part of it is undone by old run when it resumes
-
-.image race5.png
-
-* Harmless data-races
-
-Able to show that these data races don't violate invariants
-
-- such as all non-taken nodes being on spine, no cycles, etc.
-- These races only undo some compression: unwanted, but _harmless._
-- Removing them wasteful?
-
-* The global picture
-
-.image fraying0.png
-
-* The global picture
-
-.image fraying1.png
-
-* The global picture
-
-.image fraying2.png
-
-* The global picture
+* How to deal with this?
 
 .image fraying3.png
 
@@ -200,19 +213,29 @@ Can show that all-taken property on physical walk
 ⇒ property on insertion walk
 ⇒ monotonic over any compressions over the walk
 
+Our atomic actions need to be weak/general enough to be _stable_ under a constantly changing structure
+…for example, the _compression_fork_
+
+* Compression fork
+
+.image compress.png
+
+
 * What can I conclude?
 
 * Conclusions
 
-- Data-races can be harmless (depending on definition)
-- Beware ‘simple’ algorithms
-- iCAP works but could fit better
+Simple code doesn't mean simple proofs.
+
+- Data-races can make things very difficult
+- Linearisability not easily shown
+
+iCAP works but could fit better.
+
+- Abstraction is good!, but…
+- …no framing, no separation
+- proof needs to reason about _all_ interference all the time, so massive stability proofs
+- Tree logics?
 
 Proof not yet finished: too informal, probably some bugs.
 But results look promising.
-
-* References
-
-Dodds, Haas, Kirsch.  _A_Scalable,_Correct_Time-Stamped_Stack_.  POPL'15.
-
-Svendsen, Birkedal.  _impredicative_Concurrent_Abstract_Predicates_.  ESOP'14.
