@@ -1,0 +1,218 @@
+Verifying a Single-Producer Stack
+16 Jul 2015
+Tags: concurrency sppool safety icap
+
+Matt Windsor
+Ph.D student, HISE, University of York
+mbw500@york.ac.uk
+
+# Hi, I'm Matt, and I'm from the High-Integrity Systems Engineering
+# research group at the University of York.  I'm currently in my first
+# year of a Ph.D supervised by Mike Dodds.
+#
+# This is the first time I've talked at a workshop, so your feedback is
+# greatly appreciated.
+
+* Which stack am I verifying?
+
+# This talk is going to be about one data structure, which is the
+# single-producer, multi-consumer pool from Dodds, Haas, and Kirsch's
+# paper from POPL this year.
+
+*  
+
+.image sppool.png
+
+* SP pool
+
+Single Producer, multi-consumer pool.
+
+Lock-free, totally ordered, with stack-like interface
+
+Unsure if linearisable stack, but not needed (bespoke: part of _time-stamped_stack_)
+
+Uses a _sentinel_node_ to mark end of pool.
+
+  SPPool {
+    Node top;
+    Int ID;
+
+    init() { /* ... */ }
+
+    Node insert(Element element) { /* ... */ }
+    <Node, Node> getYoungest() { /* ... */ }
+    <Bool, Element> remove(Node oldTop, Node node) { /* ... */ }
+  }
+
+* Insertion
+
+# init is straightforward, so we don't cover it.
+
+_insert_ inserts to the top, non-atomic node creation, atomic top swap.
+
+.code sppool /INSERT OMIT/,/END INSERT OMIT/
+
+* Removal in two steps
+
+_getYoungest_ non-atomically finds the youngest node…
+
+.code sppool /GETYOUNGEST OMIT/,/END GETYOUNGEST OMIT/
+
+
+…and _remove_ atomically marks it as _taken_.
+
+.code sppool /REMOVE OMIT/,/END REMOVE OMIT/
+
+* Compression
+
+_insert_ adds nodes, but _remove_ doesn't remove them ⇒ _memory_leak._  Solution:
+
+- After _insert_ or _remove_, non-atomically sweep all taken nodes below current node
+- Atomically swing current node's next pointer
+- Take taken nodes out of main pool (_spine_)
+
+  Node next = newNode.next;
+  while (next->next != next && node.taken) next = next->next;
+  newNode.next = next;
+
+_getYoungest_ sweeps only taken nodes between top and youngest node, so:
+
+  CAS(top, oldTop, node);
+  if (oldTop != node) oldTop.next = node;
+
+_Assuming_reference_counting_and_ABA_counters_
+
+* Compression fork
+
+.image compress.png
+
+* What am I proving, and how?
+
+* To prove:
+
+_Memory_safety_ and consistency of the SP pool…
+
+- Next-pointer order is subset of insertion order
+- Each node has one, and only one, next pointer
+- Sentinel is the only node to point to itself
+- Each node must have a path to the sentinel
+- Only the spine can have non-taken nodes
+- No node can be both taken and non-taken
+- Methods adhere to _weak_ preconditions and postconditions
+
+…using the _iCAP_ concurrent separation logic
+
+_Not_linearisability_
+—intermediate step towards it
+
+* iCAP
+
+Higher-order concurrent separation logic based on CAP, RGSep, …, Reynolds.
+
+- Shared state is labelled transition system (protocol)
+- Transitions require threads to have (fractional) permission.
+
+*What*must*the*proof*show?*
+
+- _Transition_system_ with atomic actions and states
+- _Invariants_ and other predicates used in the proof
+- _Stability_ of predicates over atomic actions (insert, remove, compress…)
+- _Interpretation_function_ from set-tuples to concrete heaps
+- _Proof_outline_ of each method
+
+* Why is the proof interesting?
+
+* The abstract state
+
+States are tuples of sets: < T, N, t, s, _P_, _T_ >
+
+No _separation._  No _framing._
+
+Not a deal breaker, but complicates proof.
+
+SP pool not a good fit for transition systems?: not a finite state machine.
+
+
+* Forwards compression data-race
+A is inserted; all between A and B taken; compression begins
+
+.image race0.png
+
+* Forwards compression data-race
+Compression sweeps to B, which is not taken
+
+.image race1.png
+
+* Forwards compression data-race
+_Context_switch_ to removal of B; all between B and C also taken
+
+.image race2.png
+
+* Forwards compression data-race
+_Context_switch_ to removal of A; new compression run sweeps to C
+
+.image race3.png
+
+* Forwards compression data-race
+If new run updates pointer first…
+
+.image race4.png
+
+* Forwards compression data-race
+…part of it is undone by old run when it resumes
+
+.image race5.png
+
+* Harmless data-races
+
+Able to show that these data races don't violate invariants
+
+- such as all non-taken nodes being on spine, no cycles, etc.
+- These races only undo some compression: unwanted, but _harmless._
+- Removing them wasteful?
+
+* The global picture
+
+.image fraying0.png
+
+* The global picture
+
+.image fraying1.png
+
+* The global picture
+
+.image fraying2.png
+
+* The global picture
+
+.image fraying3.png
+
+Traversals can be moved off and onto the spine at any point
+How do we keep track of invariants (eg. all nodes seen so far are taken)?
+
+* Solution
+
+Use _insertion_order_
+
+Remember that this is a _superset_ of physical order
+
+Can show that all-taken property on physical walk
+⇒ property on insertion walk
+⇒ monotonic over any compressions over the walk
+
+* What can I conclude?
+
+* Conclusions
+
+- Data-races can be harmless (depending on definition)
+- Beware ‘simple’ algorithms
+- iCAP works but could fit better
+
+Proof not yet finished: too informal, probably some bugs.
+But results look promising.
+
+* References
+
+Dodds, Haas, Kirsch.  _A_Scalable,_Correct_Time-Stamped_Stack_.  POPL'15.
+
+Svendsen, Birkedal.  _impredicative_Concurrent_Abstract_Predicates_.  ESOP'14.
