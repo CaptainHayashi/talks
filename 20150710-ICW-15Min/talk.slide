@@ -29,9 +29,9 @@ Single Producer, multi-consumer pool.
 
 Lock-free, totally ordered, with stack-like interface
 
-Unsure if linearisable stack, but not needed (bespoke: part of _time-stamped_stack_)
-
 Uses a _sentinel_node_ to mark end of pool.
+
+Unsure if linearisable stack, but not needed (bespoke: part of _time-stamped_stack_)
 
   SPPool {
     Node top;
