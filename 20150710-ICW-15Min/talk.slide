@@ -1,5 +1,5 @@
 Verifying a Single-Producer Stack
-16 Jul 2015
+11.50, 16 Jul 2015
 Tags: concurrency sppool safety icap
 
 *Matt*Windsor*
@@ -17,77 +17,107 @@ mike.dodds@york.ac.uk
 # This is the first time I've talked at a workshop, so your feedback is
 # greatly appreciated.
 
-* Which stack am I verifying?
-
-# This talk is going to be about one data structure, which is the
-# single-producer, multi-consumer pool from Dodds, Haas, and Kirsch's
-# paper from POPL this year.
+# So, let's talk about verifying a stack.
 
 *  
+.image sppool0.png
 
-.image sppool.png
+# We're going to be looking at the SP pool, which is part of the
+# time-stamped stack Mike Dodds, Andreas Haas, and Christoph Kirsch
+# discussed at POPL this year.
 
-* SP pool
+# The SP pool is made up of nodes containing an element, as well as a
+# next pointer and a boolean flag symbolising takenness.
 
-Single Producer, multi-consumer pool.
+*  
+.image sppool1.png
 
-Lock-free, totally ordered, with stack-like interface
+# These nodes form a linked list…
 
-Uses a _sentinel_node_ to mark end of pool.
+*  
+.image sppool2.png
 
-Unsure if linearisable stack, but not needed (bespoke: part of _time-stamped_stack_)
+# …terminating in a special node that links back to itself, which we
+# term the sentinel node.
 
-  SPPool {
-    Node top;
-    Int ID;
+*  
+.image sppool3.png
 
-    init() { /* ... */ }
+# Of course, there is also a top pointer.  Everything from this down
+# to but excluding the sentinel is considered a node.
 
-    Node insert(Element element) { /* ... */ }
-    <Node, Node> getYoungest() { /* ... */ }
-    <Bool, Element> remove(Node oldTop, Node node) { /* ... */ }
-  }
+*  
+.image sppool4.png
 
-* Insertion
+# The SP pool is single-producer, with one thread taking the push
+# operation.
 
-# init is straightforward, so we don't cover it.
+* Pushing
 
-_insert_ inserts to the top, non-atomic node creation, atomic top swap.
+# Pushing is fairly straightforward, and involves making a node,
+# giving it the top pointer, and then assigning it to the SP pool's top.
+# We're assuming assignment is atomic here.
+
+Non-atomic node creation, atomic top swap.
 
 .code sppool /INSERT OMIT/,/END INSERT OMIT/
 
-* Removal in two steps
+Unsound in general, but our pool is single-producer, so it works.
 
-_getYoungest_ non-atomically finds the youngest node…
+*  
+.image sppool5.png
+
+# The SP pool is multi-consumer, with multiple threads being able to
+# pop.  The pop occurs in two stages:
+
+* Popping
+
+Non-atomically find the youngest node (or report empty)…
 
 .code sppool /GETYOUNGEST OMIT/,/END GETYOUNGEST OMIT/
 
-
-…and _remove_ atomically marks it as _taken_.
+…and atomically mark it as _taken_.
 
 .code sppool /REMOVE OMIT/,/END REMOVE OMIT/
 
+# This wraps up the stack methods of the pool.  So far this looks fairly
+# simple and easy to prove, but I wouldn't be talking about it if it
+# was!  So, we're not finished.
+
 * Compression
 
-_insert_ adds nodes, but _remove_ doesn't remove them ⇒ _memory_leak._  Solution:
+# You might have noticed that our pool has a memory leak in it.
 
-- After _insert_ or _remove_, non-atomically sweep all taken nodes below current node
-- Atomically swing current node's next pointer
-- Take taken nodes out of main pool (_spine_)
+_insert_ adds nodes, but _remove_ doesn't remove them ⇒ _memory_leak._
+
+Solution: _atomically_ move pointers past taken nodes
+— take taken nodes out of main pool (_spine_)
+
+* Forwards compression
+
+Non-atomically sweep all taken nodes below current node, then swing next pointer.
 
   Node next = newNode.next;
   while (next->next != next && node.taken) next = next->next;
   newNode.next = next;
+
+.image fcom.png
+
+* Backwards compression
 
 _getYoungest_ sweeps only taken nodes between top and youngest node, so:
 
   CAS(top, oldTop, node);
   if (oldTop != node) oldTop.next = node;
 
-_Assuming_reference_counting_and_ABA_counters_
+# We assume reference counting and ABA counters here.
+
+.image bcom.png
 
 * Compression
 .image fraying0.png
+
+Without compression, we have a trivial linked list…
 
 * Compression
 .image fraying1.png
@@ -95,131 +125,156 @@ _Assuming_reference_counting_and_ABA_counters_
 * Compression
 .image fraying2.png
 
-* Challenges
+This is still a linked list… right?
 
-* The SP pool is a linked list, right?
-All the red branches have been moved out and deleted by compression…
-
-.image fraying2.png
+# So, if we're doing this, then we still have a linked list, right?
+# All these red branches are unused nodes that we're just pulling out of
+# the spine, right?
 
 * Wrong
 Non-atomic traversals → traversals moved out _with_taken_nodes_
 
 .image fraying3.png
 
-* No data-races?
+* Ok… but at least there aren't any data-races
 So far the only obvious race (insert-insert) has been mitigated by SP.
 
 But… what about compression-compression?
 
-* Forwards compression data-race
+* Forwards compression ∥ Forwards compression
 A is inserted; all between A and B taken; compression begins
 
 .image race0.png
 
-* Forwards compression data-race
+* Forwards compression ∥ Forwards compression
 Compression sweeps to B, which is not taken
 
 .image race1.png
 
-* Forwards compression data-race
+* Forwards compression ∥ Forwards compression
 _Context_switch_ to removal of B; all between B and C also taken
 
 .image race2.png
 
-* Forwards compression data-race
+* Forwards compression ∥ Forwards compression
 _Context_switch_ to removal of A; new compression run sweeps to C
 
 .image race3.png
 
-* Forwards compression data-race
+* Forwards compression ∥ Forwards compression
 If new run updates pointer first…
 
 .image race4.png
 
-* Forwards compression data-race
+* Forwards compression ∥ Forwards compression
 …part of it is undone by old run when it resumes
 
 .image race5.png
 
 (Also a similar backwards-compression race with insertion!)
 
-* Harmless data-races
+* Harmless data-races?
 
-Able to show that these data races don't violate invariants
+Can we show that these don't violate well-formedness invariants?
 
-- such as all non-taken nodes being on spine, no cycles, etc.
+- All non-taken nodes being on spine, no cycles, etc.
 - These races only undo some compression: unwanted, but _harmless._
 - Removing them wasteful?
 
-* What am I proving, and how?
+Let's find out…
 
-* To prove:
-
-_Memory_safety_ and consistency of the SP pool…
-
-- Next-pointer order is subset of insertion order
-- Each node has one, and only one, next pointer
-- Sentinel is the only node to point to itself
-- Each node must have a path to the sentinel
-- Only the spine can have non-taken nodes
-- No node can be both taken and non-taken
-- Methods adhere to _weak_ preconditions and postconditions
-
-…using the _iCAP_ concurrent separation logic
-
-_Not_linearisability_
-—intermediate step towards it
-
-* iCAP
+* Introducing iCAP
 
 Higher-order concurrent separation logic based on CAP, RGSep, …, Reynolds.
 
 - Shared state is labelled transition system (protocol)
 - Transitions require threads to have (fractional) permission.
 
-*What*must*the*proof*show?*
+*What*exactly*are*we*proving?*
 
-- _Transition_system_ with atomic actions and states
-- _Invariants_ and other predicates used in the proof
-- _Stability_ of predicates over atomic actions (insert, remove, compress…)
-- _Interpretation_function_ from set-tuples to concrete heaps
-- _Proof_outline_ of each method
+- _Memory_safety_ (well-formedness invariants)
+- linearizability to a stack better, but more difficult
+
+Proof is mainly carried out using an abstraction of the states of the SP pool
+
+# Next-pointer order is subset of insertion order
+# Each node has one, and only one, next pointer
+# Sentinel is the only node to point to itself
+# Each node must have a path to the sentinel
+# Only the spine can have non-taken nodes
+# No node can be both taken and non-taken
+# Methods adhere to _weak_ preconditions and postconditions
+
 
 * The abstract state
+Each state is a _6-tuple_ of nodes and _sets_ of nodes:
 
-States are tuples of sets: < T, N, t, s, _P_, _T_ >
+.image tuple0.png
 
+* The abstract state
+Each state is a _6-tuple_ of nodes and _sets_ of nodes:
+
+.image tuple1.png
+# We have the sets of taken and non-taken nodes…
+
+* The abstract state
+Each state is a _6-tuple_ of nodes and _sets_ of nodes:
+
+.image tuple2.png
+# …the top and sentinel nodes, which must be in N union T…
+
+* The abstract state
+Each state is a _6-tuple_ of nodes and _sets_ of nodes:
+
+.image tuple3.png
+# …and two sets of pointers as ordered set pairs, one of which is the
+# literal physical next pointer set that can be closed over to make a
+# partial physical order, and the other is added to every
+# time a node is inserted, and can be used to make a total insertion
+# order.
+
+≤𝓟 ≜ reflexive transitive closure of 𝓟
+—_physical_order_
+≤𝓣 ≜ reflexive transitive closure of 𝓣
+—_temporal_(insertion)_order_
+
+* The abstract state is a monolithic tuple
+.image framing.png
 No _separation._  No _framing._
+
+Actions affect only one or two nodes, but we have to reason about the _whole_pool_.
 
 Not a deal breaker, but complicates proof.
 
-SP pool not a good fit for transition systems?: not a finite state machine.
+# SP pool not a good fit for transition systems?: not a finite state machine.
 
-* How to deal with this?
+* What do invariants look like?
+
+Invariants need to be general enough to cope with a constantly shifting pool
 
 .image fraying3.png
 
-Traversals can be moved off and onto the spine at any point
-How do we keep track of invariants (eg. all nodes seen so far are taken)?
+Let's look at an example…
 
-* Solution
+* Invariant for forwards compression
 
-Use _insertion_order_
+*Forwards*compression*of*a*from*b*to*c:*
+⟨N, T, t, s, 𝓟 ⊎ {(a, b)}, 𝓣⟩ ∧ a >𝓣 c ∧ allTaken(b, c, T, 𝓟, 𝓣) ⟿ ⟨N, T, t, s, 𝓟 ⊎ {(a, c)}, 𝓣⟩
 
-Remember that this is a _superset_ of physical order
-
-Can show that all-taken property on physical walk
-⇒ property on insertion walk
-⇒ monotonic over any compressions over the walk
-
-Our atomic actions need to be weak/general enough to be _stable_ under a constantly changing structure
-…for example, the _compression_fork_
-
-* Compression fork
+# Compression need not be between two points on the same branch
+# …but both sides must be _taken_
 
 .image compress.png
 
+How to show both sides are taken?  That the compression can't make cycles?
+
+* Invariant for forwards compression
+
+.image compress2.png
+
+# If we apply the insertion order here, then we can simply say that
+
+≤𝓟 ⊆ ≤𝓣, ≤𝓣 total, and ≤𝓣 monotonic; compression preserves _illusion_ that ≤𝓟 = ≤𝓣
 
 * What can I conclude?
 

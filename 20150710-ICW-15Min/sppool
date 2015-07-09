@@ -1,5 +1,5 @@
 // INSERT OMIT
-  Node insert(Element element) {
+  Node push(Element element) {
     Node newNode = createNode(element=element, taken=false);
     newnode.next = top;
     top = newNode; // HL
