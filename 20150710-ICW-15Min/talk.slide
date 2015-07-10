@@ -89,16 +89,21 @@ Non-atomically find the youngest node (or report empty)…
 # You might have noticed that our pool has a memory leak in it.
 
 _insert_ adds nodes, but _remove_ doesn't remove them ⇒ _memory_leak._
+Also a time leak, as we have to traverse all these ‘dead’ nodes.
+
+.image leak.png
 
 Solution: _atomically_ move pointers past taken nodes
 — take taken nodes out of main pool (_spine_)
+
+If we have GC/reference-counting, this should work!
 
 * Forwards compression
 
 Non-atomically sweep all taken nodes below current node, then swing next pointer.
 
   Node next = newNode.next;
-  while (next->next != next && node.taken) next = next->next;
+  while (next->next != next && next.taken) next = next->next;
   newNode.next = next;
 
 .image fcom.png
@@ -125,13 +130,13 @@ Without compression, we have a trivial linked list…
 * Compression
 .image fraying2.png
 
-This is still a linked list… right?
+GC ⟹ still a linked list… right?
 
 # So, if we're doing this, then we still have a linked list, right?
 # All these red branches are unused nodes that we're just pulling out of
 # the spine, right?
 
-* Wrong
+* Compression
 Non-atomic traversals → traversals moved out _with_taken_nodes_
 
 .image fraying3.png
@@ -181,21 +186,18 @@ Can we show that these don't violate well-formedness invariants?
 - These races only undo some compression: unwanted, but _harmless._
 - Removing them wasteful?
 
+In other words, can we prove _memory_safety_of_the_compressed_SP_pool?_
+
 Let's find out…
 
-* Introducing iCAP
+* iCAP
 
 Higher-order concurrent separation logic based on CAP, RGSep, …, Reynolds.
 
 - Shared state is labelled transition system (protocol)
-- Transitions require threads to have (fractional) permission.
+- Transitions (atomic actions) guarded by fractional permissions → single-producer
 
-*What*exactly*are*we*proving?*
-
-- _Memory_safety_ (well-formedness invariants)
-- linearizability to a stack better, but more difficult
-
-Proof is mainly carried out using an abstraction of the states of the SP pool
+Let's see what (part of) the transition system looks like…
 
 # Next-pointer order is subset of insertion order
 # Each node has one, and only one, next pointer
@@ -244,19 +246,18 @@ No _separation._  No _framing._
 
 Actions affect only one or two nodes, but we have to reason about the _whole_pool_.
 
-Not a deal breaker, but complicates proof.
-
+# Not a deal breaker, but complicates proof.
 # SP pool not a good fit for transition systems?: not a finite state machine.
 
-* What do invariants look like?
+* What does the proof look like?
 
-Invariants need to be general enough to cope with a constantly shifting pool
+Invariants/transitions must be general enough to cope with a constantly shifting pool
 
 .image fraying3.png
 
 Let's look at an example…
 
-* Invariant for forwards compression
+* Atomic action for forwards compression
 
 *Forwards*compression*of*a*from*b*to*c:*
 ⟨N, T, t, s, 𝓟 ⊎ {(a, b)}, 𝓣⟩ ∧ a >𝓣 c ∧ allTaken(b, c, T, 𝓟, 𝓣) ⟿ ⟨N, T, t, s, 𝓟 ⊎ {(a, c)}, 𝓣⟩
@@ -268,7 +269,7 @@ Let's look at an example…
 
 How to show both sides are taken?  That the compression can't make cycles?
 
-* Invariant for forwards compression
+* Atomic action for forwards compression
 
 .image compress2.png
 

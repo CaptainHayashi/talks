@@ -1,7 +1,7 @@
 // INSERT OMIT
   Node push(Element element) {
     Node newNode = createNode(element=element, taken=false);
-    newnode.next = top;
+    newNode.next = top;
     top = newNode; // HL
     /* ... compression ... */
     return newNode;
