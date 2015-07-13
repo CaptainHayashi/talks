@@ -26,28 +26,19 @@ mike.dodds@york.ac.uk
 # time-stamped stack Mike Dodds, Andreas Haas, and Christoph Kirsch
 # discussed at POPL this year.
 
-# The SP pool is made up of nodes containing an element, as well as a
-# next pointer and a boolean flag symbolising takenness.
+# On the face of it, the SP pool is a linked list, whose nodes contain
+# an element and a next pointer.  However, nodes can also be ‘taken’,
+# which marks them as dead to the algorithm.  We have a top pointer,
+# but we also need to know when the list ends.
 
 *  
 .image sppool1.png
 
-# These nodes form a linked list…
-
-*  
-.image sppool2.png
-
-# …terminating in a special node that links back to itself, which we
+# This is done with a special node that links back to itself, which we
 # term the sentinel node.
 
 *  
-.image sppool3.png
-
-# Of course, there is also a top pointer.  Everything from this down
-# to but excluding the sentinel is considered a node.
-
-*  
-.image sppool4.png
+.image sppool2.png
 
 # The SP pool is single-producer, with one thread taking the push
 # operation.
@@ -62,10 +53,10 @@ Non-atomic node creation, atomic top swap.
 
 .code sppool /INSERT OMIT/,/END INSERT OMIT/
 
-Unsound in general, but our pool is single-producer, so it works.
+Single-producer means insert can't race with itself.
 
 *  
-.image sppool5.png
+.image sppool3.png
 
 # The SP pool is multi-consumer, with multiple threads being able to
 # pop.  The pop occurs in two stages:
@@ -88,7 +79,7 @@ Non-atomically find the youngest node (or report empty)…
 
 # You might have noticed that our pool has a memory leak in it.
 
-_insert_ adds nodes, but _remove_ doesn't remove them ⇒ _memory_leak._
+Pushing adds nodes, but popping doesn't remove them ⇒ _memory_leak._
 Also a time leak, as we have to traverse all these ‘dead’ nodes.
 
 .image leak.png
@@ -96,7 +87,7 @@ Also a time leak, as we have to traverse all these ‘dead’ nodes.
 Solution: _atomically_ move pointers past taken nodes
 — take taken nodes out of main pool (_spine_)
 
-If we have GC/reference-counting, this should work!
+# If we have GC/reference-counting, this should work!
 
 * Forwards compression
 
@@ -147,40 +138,48 @@ So far the only obvious race (insert-insert) has been mitigated by SP.
 But… what about compression-compression?
 
 * Forwards compression ∥ Forwards compression
-A is inserted; all between A and B taken; compression begins
+Thread 1 pushes A, starting blue compression.  All between nodes A, B, C taken.
+Sweeps to B, which is not taken.
 
 .image race0.png
 
+_Trace:_ *1*push(A);*1*compress-sweep(A,*B)*
+
 * Forwards compression ∥ Forwards compression
-Compression sweeps to B, which is not taken
+_Context_switch_. Thread 2 pops B.
+Thread 1 is still waiting to switch A's pointer.
 
 .image race1.png
 
+_Trace:_ 1 push(A); 1 compress-sweep(A, B); *2*pop(B)*
+
 * Forwards compression ∥ Forwards compression
-_Context_switch_ to removal of B; all between B and C also taken
+_Context_switch_. Thread 3 pops A.
+Thread 3 now starts green compression, which sweeps to C.
 
 .image race2.png
 
+_Trace:_ 1 push(A); 1 compress-sweep(A, B); 2 pop(B); *3*pop(A);*3*compress-sweep(A,*C)*
+
 * Forwards compression ∥ Forwards compression
-_Context_switch_ to removal of A; new compression run sweeps to C
+_Context_switch_.
+If thread 3 updates pointer first…
 
 .image race3.png
 
+_Trace:_ 1 push(A); 1 compress-sweep(A, B); 2 pop(B); 3 pop(A); 3 compress-sweep(A, C);
+*3*compress-update(A,*C)*
+
 * Forwards compression ∥ Forwards compression
-If new run updates pointer first…
+…part of it is undone by thread 1 when it resumes.
+(Also a similar backwards-compression race with insertion!)
 
 .image race4.png
 
-* Forwards compression ∥ Forwards compression
-…part of it is undone by old run when it resumes
+_Trace:_ 1 push(A); 1 compress-sweep(A, B); 2 pop(B); 3 pop(A); 3 compress-sweep(A, C);
+3 compress-update(A, C); *1*compress-update(A,*B)*
 
-.image race5.png
-
-(Also a similar backwards-compression race with insertion!)
-
-* Harmless data-races?
-
-Can we show that these don't violate well-formedness invariants?
+* Can we show that these don't violate well-formedness invariants?
 
 - All non-taken nodes being on spine, no cycles, etc.
 - These races only undo some compression: unwanted, but _harmless._
@@ -188,7 +187,7 @@ Can we show that these don't violate well-formedness invariants?
 
 In other words, can we prove _memory_safety_of_the_compressed_SP_pool?_
 
-Let's find out…
+We want a _framework_ for reasoning about this.
 
 * iCAP
 
