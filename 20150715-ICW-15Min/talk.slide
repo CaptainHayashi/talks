@@ -1,5 +1,5 @@
 Verifying a Single-Producer Stack
-11.50, 16 Jul 2015
+15 Jul 2015
 Tags: concurrency sppool safety icap
 
 *Matt*Windsor*
@@ -18,6 +18,8 @@ mike.dodds@york.ac.uk
 # greatly appreciated.
 
 # So, let's talk about verifying a stack.
+
+* The stack to verify
 
 *  
 .image sppool0.png
@@ -93,33 +95,33 @@ Solution: _atomically_ move pointers past taken nodes
 
 Non-atomically sweep all taken nodes below current node, then swing next pointer.
 
-  Node next = newNode.next;
-  while (next->next != next && next.taken) next = next->next;
-  newNode.next = next;
+  Node next = A.next;                                          // next == A.next == B
+  while (next->next != next && next.taken) next = next->next;  // next == C            (sweep)
+  A.next = next;                                               // next == A.next == C  (update)
 
 .image fcom.png
 
 * Backwards compression
 
-_getYoungest_ sweeps only taken nodes between top and youngest node, so:
+_getYoungest_ sweeps only taken nodes between top and youngest node.
+If top was A, and youngest was C, infer everything between A and C must be taken:
 
-  CAS(top, oldTop, node);
-  if (oldTop != node) oldTop.next = node;
+  CAS(top, A, C);          // if top == A, (infer) and (update)
+  if (A != C) A.next = C;  // this part is effectively forwards compression
 
 # We assume reference counting and ABA counters here.
 
 .image bcom.png
 
-* Compression
+* Complexity emerges
+
+* Global effect of compression
 .image fraying0.png
 
 Without compression, we have a trivial linked list…
 
-* Compression
+* Global effect of compression
 .image fraying1.png
-
-* Compression
-.image fraying2.png
 
 GC ⟹ still a linked list… right?
 
@@ -127,15 +129,10 @@ GC ⟹ still a linked list… right?
 # All these red branches are unused nodes that we're just pulling out of
 # the spine, right?
 
-* Compression
-Non-atomic traversals → traversals moved out _with_taken_nodes_
+* Traversals can end up in compressed paths
+Non-atomic traversals → traversals moved out _with_taken_nodes_. Is this racy?
 
-.image fraying3.png
-
-* Ok… but at least there aren't any data-races
-So far the only obvious race (insert-insert) has been mitigated by SP.
-
-But… what about compression-compression?
+.image fraying2.png
 
 * Forwards compression ∥ Forwards compression
 Thread 1 pushes A, starting blue compression.  All between nodes A, B, C taken.
@@ -183,20 +180,16 @@ _Trace:_ 1 push(A); 1 compress-sweep(A, B); 2 pop(B); 3 pop(A); 3 compress-sweep
 
 - All non-taken nodes being on spine, no cycles, etc.
 - These races only undo some compression: unwanted, but _harmless._
-- Removing them wasteful?
 
 In other words, can we prove _memory_safety_of_the_compressed_SP_pool?_
 
 We want a _framework_ for reasoning about this.
 
-* iCAP
+I used *iCAP*
 
-Higher-order concurrent separation logic based on CAP, RGSep, …, Reynolds.
-
+- Higher-order concurrent separation logic
 - Shared state is labelled transition system (protocol)
 - Transitions (atomic actions) guarded by fractional permissions → single-producer
-
-Let's see what (part of) the transition system looks like…
 
 # Next-pointer order is subset of insertion order
 # Each node has one, and only one, next pointer
@@ -206,84 +199,111 @@ Let's see what (part of) the transition system looks like…
 # No node can be both taken and non-taken
 # Methods adhere to _weak_ preconditions and postconditions
 
+* A taste of iCAP
 
 * The abstract state
 Each state is a _6-tuple_ of nodes and _sets_ of nodes:
 
 .image tuple0.png
 
-* The abstract state
-Each state is a _6-tuple_ of nodes and _sets_ of nodes:
+These entirely characterise the SP pool.
+Some are _ghost_variables_: they don't correspond to concrete state.
 
+* The abstract state
 .image tuple1.png
-# We have the sets of taken and non-taken nodes…
+# We have the set of non-taken nodes…
 
 * The abstract state
-Each state is a _6-tuple_ of nodes and _sets_ of nodes:
-
 .image tuple2.png
+# …the set of taken nodes…
+
+* The abstract state
+.image tuple3.png
 # …the top and sentinel nodes, which must be in N union T…
 
 * The abstract state
-Each state is a _6-tuple_ of nodes and _sets_ of nodes:
+.image tuple4.png
 
-.image tuple3.png
+* The abstract state
+.image tuple5.png
 # …and two sets of pointers as ordered set pairs, one of which is the
 # literal physical next pointer set that can be closed over to make a
 # partial physical order, and the other is added to every
 # time a node is inserted, and can be used to make a total insertion
 # order.
 
-≤𝓟 ≜ reflexive transitive closure of 𝓟
-—_physical_order_
-≤𝓣 ≜ reflexive transitive closure of 𝓣
-—_temporal_(insertion)_order_
+≤𝓟 ≜ reflexive transitive closure of 𝓟 —_physical_order_
+≤𝓣 ≜ reflexive transitive closure of 𝓣 —_temporal_(insertion)_order_
 
-* The abstract state is a monolithic tuple
-.image framing.png
-No _separation._  No _framing._
+* States and transitions
 
-Actions affect only one or two nodes, but we have to reason about the _whole_pool_.
+Each atomic action corresponds to a labelled transition.
 
-# Not a deal breaker, but complicates proof.
-# SP pool not a good fit for transition systems?: not a finite state machine.
+Each must be general enough to admit the data-races while proving them _harmless_.
 
-* What does the proof look like?
+.image tprods.png
 
-Invariants/transitions must be general enough to cope with a constantly shifting pool
+Let's look at an example, the transition for forwards compression.
 
-.image fraying3.png
+* General forwards compression
 
-Let's look at an example…
+B and C are _not_necessarily_ on same branch.  Why?  Compression data-race.
+
+.image compress0.png
+
+How do we capture this in iCAP?
 
 * Atomic action for forwards compression
 
 *Forwards*compression*of*a*from*b*to*c:*
-⟨N, T, t, s, 𝓟 ⊎ {(a, b)}, 𝓣⟩ ∧ a >𝓣 c ∧ allTaken(b, c, T, 𝓟, 𝓣) ⟿ ⟨N, T, t, s, 𝓟 ⊎ {(a, c)}, 𝓣⟩
+⟨N, T, t, s, 𝓟 ⊎ {(a, b)}, 𝓣⟩ ∧ a >𝓣 c ∧ allTaken(b, c, T, 𝓟, 𝓣)
+⟿ ⟨N, T, t, s, 𝓟 ⊎ {(a, c)}, 𝓣⟩
+(where allTaken ensures any nodes moved in/out of spine are taken)
+
+Can you see the pointer update?
+
+- Can't just _frame_ on {(a, b)} ⟿ {(a, c)}
+- Drawback of iCAP's abstraction mechanisms
+
+How do we state the all-taken property properly?
+How do we know that compression can't make cycles?
 
 # Compression need not be between two points on the same branch
 # …but both sides must be _taken_
 
-.image compress.png
 
-How to show both sides are taken?  That the compression can't make cycles?
+* Forwards compression: use temporal order ≤𝓣
 
-* Atomic action for forwards compression
-
-.image compress2.png
+.image compress1.png
 
 # If we apply the insertion order here, then we can simply say that
 
-≤𝓟 ⊆ ≤𝓣, ≤𝓣 total, and ≤𝓣 monotonic; compression preserves _illusion_ that ≤𝓟 = ≤𝓣
+- ≤𝓣 total: allTaken property expressed over an interval
+- ≤𝓟 ⊆ ≤𝓣: maintaining this implies lack of cycles
+- Any deviation between the two can only concern taken nodes
+
+# ≤𝓟 ⊆ ≤𝓣, ≤𝓣 total, and ≤𝓣 monotonic; compression preserves _illusion_ that ≤𝓟 = ≤𝓣
 
 * What can I conclude?
 
 * Conclusions
 
-Simple code doesn't mean simple proofs.
+We _believe_ the SP pool is memory safe.
 
-- Data-races can make things very difficult
-- Linearisability not easily shown
+- Proof not yet fully formalised and checked
+- Some known unknowns, probably unknown unknowns too
+- Aim to finish and possibly publish results later this year
+
+* Linearisability?
+
+No conclusive result for linearisability to set or stack semantics.
+
+- Best bet: _stack_theorem_ (Dodds/Haas/Kirsch)
+- Informally, SP pool seems to preserve LIFO order
+- Memory safety implies almost all of set semantics linearisable
+- Emptiness check is causing problems
+
+* How useful is iCAP?
 
 iCAP works but could fit better.
 
@@ -291,6 +311,3 @@ iCAP works but could fit better.
 - …no framing, no separation
 - proof needs to reason about _all_ interference all the time, so massive stability proofs
 - Tree logics?
-
-Proof not yet finished: too informal, probably some bugs.
-But results look promising.
