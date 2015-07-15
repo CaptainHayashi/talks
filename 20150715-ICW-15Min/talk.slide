@@ -178,8 +178,8 @@ _Trace:_ 1 push(A); 1 compress-sweep(A, B); 2 pop(B); 3 pop(A); 3 compress-sweep
 
 * Can we show that these don't violate well-formedness invariants?
 
-- All non-taken nodes being on spine, no cycles, etc.
-- These races only undo some compression: unwanted, but _harmless._
+All non-taken nodes being on spine, no cycles, etc.
+Show races only undo some compression: unwanted, but _harmless._
 
 In other words, can we prove _memory_safety_of_the_compressed_SP_pool?_
 
@@ -189,7 +189,6 @@ I used *iCAP*
 
 - Higher-order concurrent separation logic
 - Shared state is labelled transition system (protocol)
-- Transitions (atomic actions) guarded by fractional permissions → single-producer
 
 # Next-pointer order is subset of insertion order
 # Each node has one, and only one, next pointer
@@ -296,7 +295,7 @@ We _believe_ the SP pool is memory safe.
 
 * Linearisability?
 
-No conclusive result for linearisability to set or stack semantics.
+No conclusive result for linearisability to set or stack semantics _yet_.
 
 - Best bet: _stack_theorem_ (Dodds/Haas/Kirsch)
 - Informally, SP pool seems to preserve LIFO order
@@ -307,7 +306,6 @@ No conclusive result for linearisability to set or stack semantics.
 
 iCAP works but could fit better.
 
-- Abstraction is good!, but…
-- …no framing, no separation
-- proof needs to reason about _all_ interference all the time, so massive stability proofs
+- Abstraction is good!, but no _framing_, no _separation_.
+- Proof needs to reason about _all_ interference all the time, so massive stability proofs
 - Tree logics?
