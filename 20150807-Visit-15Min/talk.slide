@@ -1,0 +1,225 @@
+Verifying a Single-Producer Stack
+(redux)
+7 Aug 2015
+Tags: concurrency sppool safety icap
+
+*Matt*Windsor*
+University of York
+mbw500@york.ac.uk
+
+Mike Dodds
+University of York
+mike.dodds@york.ac.uk
+
+# Hi, I'm Matt, and I'm from the High-Integrity Systems Engineering
+# research group at the University of York.  I'm currently in my first
+# year of a Ph.D supervised by Mike Dodds.
+#
+# This is the first time I've talked at a workshop, so your feedback is
+# greatly appreciated.
+
+* Mission
+
+To prove linearisability of a real-world, racy, non-blocking stack using a _concurrent_separation_logic_ (iCAP).
+
+_Why?_
+
+- Result about the usefulness of such logics
+- Work towards proving bigger systems to which the stack belongs
+
+Let's meet the stack under investigation…
+
+*  
+.image sppool0.png
+
+# We're going to be looking at the SP pool, which is part of the
+# time-stamped stack Mike Dodds, Andreas Haas, and Christoph Kirsch
+# discussed at POPL this year.
+
+# On the face of it, the SP pool is a linked list, whose nodes contain
+# an element and a next pointer.  However, nodes can also be ‘taken’,
+# which marks them as dead to the algorithm.  We have a top pointer,
+# but we also need to know when the list ends.
+
+*  
+.image sppool1.png
+
+# This is done with a special node that links back to itself, which we
+# term the sentinel node.
+
+*  
+.image sppool2.png
+
+# The SP pool is single-producer, with one thread taking the push
+# operation.
+
+*  
+.image sppool3.png
+
+# The SP pool is multi-consumer, with multiple threads being able to
+# pop.  The pop occurs in two stages:
+
+* Pushing and popping
+
+Pushing is _atomic_ in the shared state:
+
+- Build a new node in thread-local state
+- Point it to the _current_ top (again, in thread-local state)
+- _Atomically_ change top pointer
+
+Popping is more complex:
+
+- _Non-atomically_ find the youngest node (or report empty)
+- _Atomically_ mark it as _taken_
+
+Whether pop(A) observes pop(B) depends on B's location relative to A.
+No simple linearisation points.
+
+* Compression
+
+# You might have noticed that our pool has a memory leak in it.
+
+Pushing adds nodes, but popping doesn't remove them ⇒ _memory_leak._
+Also a time leak, as we have to traverse all these ‘dead’ nodes.
+
+.image leak.png
+
+Solution: _atomically_ move pointers past taken nodes
+— take taken nodes out of main pool (_spine_)
+
+# If we have GC/reference-counting, this should work!
+
+* Forwards compression
+
+Non-atomically sweep all taken nodes below current node, then swing next pointer.
+
+.image fcom.png
+
+* Backwards compression
+
+Popping sweeps only taken nodes between top and youngest node.
+If top was A, and youngest was C, infer everything between A and C must be taken: we can safely re-assign top to C.
+
+# We assume reference counting and ABA counters here.
+
+.image bcom.png
+
+* Compression complicates concrete state
+Before compression:
+
+.image fraying0.png
+
+
+* Compression complicates concrete state
+After compression:
+
+.image fraying1.png
+
+* Compression complicates concrete state
+Non-atomic traversals → traversals moved out _with_taken_nodes_
+
+.image fraying2.png
+
+* Compression introduces races
+Two parallel compressions (blue/left and green/right) can create this situation
+
+- If blue goes first, it is overridden by green
+- If green goes first, blue partially undoes it
+
+.image race2.png
+
+* Can we prove linearisability?
+
+Problems:
+
+- No obvious static linearisation points
+- Races (compression/compression, insert/compression)
+- Concrete structure is difficult (constantly shifting reversed tree)
+
+Progress so far:
+
+- Draft proof of memory safety (in iCAP)
+- Linearisability to set (minus emptiness check) from iCAP proof
+- LIFO order _may_ be proven (initial result, not iCAP, not confident!)
+- Emptiness check _not_yet_proven_
+
+* iCAP: memory safety and basic set linearisability
+
+* The abstract state
+iCAP based on labelled transition systems: abstract states and atomic transitions.
+July: each state is a _6-tuple_ of nodes and _sets_ of nodes:
+
+.image tupleS0.png
+
+* The abstract state
+August: added _elements_
+
+.image tupleS1.png
+
+_All_ aspects of the proof need to change to reflect this…
+even though only a small part deals with them
+
+≤𝓟 ≜ reflexive transitive closure of 𝓟 —_physical_order_
+≤𝓣 ≜ reflexive transitive closure of 𝓣 —_temporal_(insertion)_order_
+
+* States and transitions
+
+Each atomic action corresponds to a labelled transition.
+
+Note that each only changes _part_ of the state, but must reason about _all_ of it.
+
+.image tprods.png
+
+* Does this work well?
+
+Works well for memory safety, with caveats.
+
+Reasoning is overly global, for example:
+
+.image proof4.png
+
+Note that only 𝓟 changes!
+
+Abstract state doesn't reflect the concrete tree well—tree logics?
+
+* Sometimes it gets quite horrific
+
+Compression reasoning brings in meet points.
+Meet points bring in bits of order and lattice theory.
+This results in…
+
+.image proof3.png
+
+* Proving everything else
+
+We can use N, T, and E to prove most of set linearisability through aspects
+(no element duplication, no element loss, removed elements must be inserted)
+
+What about emptiness checks and LIFO?
+
+_Stack_theorem_ (Dodds et al.): show certain histories are not allowed.
+No linearisation points, just the ability to draw specific, consistent action orders.
+Event-based reasoning—doesn't mesh well with iCAP.
+
+* Linearisability sketches
+
+.image proof1.png
+
+iCAP proof gives us well-formedness, but nearly all of this reasoning is non-iCAP.
+
+* Linearisability sketches
+(+a = push(a), -a = pop(a))
+
+.image proof2.png
+
+* Conclusion
+
+Memory safety: program logics work here, to a point.
+Order correctness: how do orders and program logics connect?
+
+Mostly confident that this is linearisable… but mostly confident is not proof.
+
+Open questions:
+
+- How do we finish the proof?
+- How do we finish the proof _in_a_program_logic_?

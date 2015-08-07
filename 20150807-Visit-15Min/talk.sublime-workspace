@@ -1,0 +1,486 @@
+{
+	"auto_complete":
+	{
+		"selected_items":
+		[
+		]
+	},
+	"buffers":
+	[
+	],
+	"build_system": "",
+	"build_system_choices":
+	[
+	],
+	"build_varint": "",
+	"command_palette":
+	{
+		"height": 375.0,
+		"last_filter": ":w",
+		"selected_items":
+		[
+			[
+				":w",
+				":w - Save"
+			],
+			[
+				"insert",
+				"UnicodeMath: Insert"
+			],
+			[
+				"uni",
+				"UnicodeMath: Insert"
+			],
+			[
+				"un",
+				"UnicodeMath: Insert"
+			],
+			[
+				"umin",
+				"UnicodeMath: Insert"
+			],
+			[
+				"unic",
+				"UnicodeMath: Insert"
+			],
+			[
+				":$",
+				":$ - EOF"
+			],
+			[
+				"colsub",
+				"Colorsublime: Install Theme"
+			],
+			[
+				"item",
+				"Snippet: Itemize"
+			],
+			[
+				"gitcom",
+				"Git: Commit"
+			],
+			[
+				"gitadd",
+				"Git: Add..."
+			],
+			[
+				"gitst",
+				"Git: Status"
+			],
+			[
+				"pkins",
+				"Package Control: Install Package"
+			],
+			[
+				"desc",
+				"Snippet: Description"
+			],
+			[
+				"pkin",
+				"Package Control: Install Package"
+			],
+			[
+				"itemiz",
+				"Snippet: Itemize"
+			],
+			[
+				"csin",
+				"Colorsublime: Install Theme"
+			],
+			[
+				"bui",
+				"Build: New Build System"
+			]
+		],
+		"width": 462.0
+	},
+	"console":
+	{
+		"height": 0.0,
+		"history":
+		[
+		]
+	},
+	"distraction_free":
+	{
+		"menu_visible": false,
+		"show_minimap": false,
+		"show_open_files": false,
+		"show_tabs": false,
+		"side_bar_visible": false,
+		"status_bar_visible": false
+	},
+	"file_history":
+	[
+		"/home/hayashi/Documents/PhD/sppool-correctness/shorts/2015-03-12-compress-invariant.tex",
+		"/home/hayashi/.config/sublime-text-3/Packages/User/Preferences.sublime-settings",
+		"/home/hayashi/.config/sublime-text-3/Packages/Default/Preferences.sublime-settings",
+		"/home/hayashi/Documents/PhD/sppool-correctness/shorts/attempt2/intro.tex"
+	],
+	"find":
+	{
+		"height": 24.0
+	},
+	"find_in_files":
+	{
+		"height": 95.0,
+		"where_history":
+		[
+			"<open folders>"
+		]
+	},
+	"find_state":
+	{
+		"case_sensitive": false,
+		"find_history":
+		[
+			", ",
+			"œ",
+			"≠",
+			"fi",
+			"ir",
+			"thm",
+			"_{S_t}",
+			"S_p",
+			">_{S'_t}",
+			">_{S_t}",
+			"S_t",
+			"res",
+			"\\sep",
+			"\\_ret_1",
+			"\\sep",
+			"\\uplus",
+			"\\cdot",
+			"\\exists",
+			"\\left\\{",
+			"compression",
+			"lem:tak",
+			"proof",
+			"\\geq_t",
+			" \\in ",
+			"\\in",
+			"\\cup",
+			"\\exists",
+			"x,∗\\in",
+			" x) ",
+			"\\iff",
+			"\\cdot",
+			"\\forall",
+			"\\geq_t",
+			"\n",
+			"ϕ",
+			"\\wedge",
+			"\\cup",
+			"\\cdot",
+			"\\geq",
+			"\\triangleq",
+			"\\langle",
+			"\\in",
+			"\\cup",
+			"tord",
+			"≥_p",
+			"\\geq_t",
+			"\\wedge_p",
+			"at",
+			"\\autoref{lem:no-null-derefs}",
+			"\\meet",
+			"theorem:",
+			"thm",
+			"lem",
+			"iCAP",
+			"L_t",
+			"L_p",
+			"thm:",
+			"def",
+			"section",
+			"itemize",
+			"scroll",
+			"_p",
+			"p",
+			"\\wedge_p",
+			"L_t",
+			"S_t",
+			"S_T",
+			"S_t",
+			"S_T",
+			"S_t",
+			"S_T",
+			"S_t",
+			"L_p",
+			"S_{L_p}",
+			"allt",
+			"S_\\tord",
+			"\\leq_",
+			"L_t",
+			"L_p",
+			"\\alltaken",
+			"pdfla",
+			"\\c",
+			".cpp",
+			"flac",
+			"FLAC"
+		],
+		"highlight": true,
+		"in_selection": false,
+		"preserve_case": false,
+		"regex": false,
+		"replace_history":
+		[
+		],
+		"reverse": true,
+		"show_context": true,
+		"use_buffer2": true,
+		"whole_word": false,
+		"wrap": true
+	},
+	"groups":
+	[
+		{
+			"sheets":
+			[
+			]
+		}
+	],
+	"incremental_find":
+	{
+		"height": 24.0
+	},
+	"input":
+	{
+		"height": 37.0
+	},
+	"layout":
+	{
+		"cells":
+		[
+			[
+				0,
+				0,
+				1,
+				1
+			]
+		],
+		"cols":
+		[
+			0.0,
+			1.0
+		],
+		"rows":
+		[
+			0.0,
+			1.0
+		]
+	},
+	"menu_visible": true,
+	"output.find_results":
+	{
+		"height": 0.0
+	},
+	"pinned_build_system": "",
+	"project": "talk.sublime-project",
+	"replace":
+	{
+		"height": 44.0
+	},
+	"save_all_on_build": true,
+	"select_file":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+			[
+				"op",
+				"shorts/attempt2/operators.tex"
+			],
+			[
+				"cdef",
+				"shorts/attempt2/cdefs.tex"
+			],
+			[
+				"outli",
+				"shorts/attempt2/outlines.tex"
+			],
+			[
+				"not",
+				"shorts/attempt2/notation.tex"
+			],
+			[
+				"pred",
+				"shorts/attempt2/preds.tex"
+			],
+			[
+				"out",
+				"shorts/attempt2/outlines.tex"
+			],
+			[
+				"att",
+				"shorts/2015-03-25-icap-attempt.tex"
+			],
+			[
+				"outl",
+				"shorts/attempt2/outlines.tex"
+			],
+			[
+				"inter",
+				"shorts/attempt2/interp.tex"
+			],
+			[
+				"tr",
+				"shorts/attempt2/trans.tex"
+			],
+			[
+				"bib",
+				"sppool.bib"
+			],
+			[
+				"tran",
+				"shorts/attempt2/trans.tex"
+			],
+			[
+				"intro",
+				"shorts/attempt2/intro.tex"
+			],
+			[
+				"abs",
+				"shorts/attempt2/abs.tex"
+			],
+			[
+				"com",
+				"shorts/common.tex"
+			],
+			[
+				"preds",
+				"shorts/attempt2/preds.tex"
+			],
+			[
+				"lemm",
+				"shorts/attempt2/lemmata.tex"
+			],
+			[
+				"interp",
+				"shorts/attempt2/interp.tex"
+			],
+			[
+				"introdu",
+				"introduction.tex"
+			],
+			[
+				"comm",
+				"shorts/common.tex"
+			],
+			[
+				"lem",
+				"shorts/attempt2/lemmata.tex"
+			],
+			[
+				"commo",
+				"shorts/common.tex"
+			],
+			[
+				"ope",
+				"shorts/attempt2/operators.tex"
+			],
+			[
+				"ops",
+				"shorts/attempt2/operators.tex"
+			],
+			[
+				"cde",
+				"shorts/attempt2/cdefs.tex"
+			],
+			[
+				"o",
+				"shorts/attempt2/outlines.tex"
+			],
+			[
+				"sta",
+				"shorts/attempt2/stability.tex"
+			],
+			[
+				"lemma",
+				"shorts/attempt2/lemmata.tex"
+			],
+			[
+				"comtex",
+				"shorts/common.tex"
+			],
+			[
+				"stabi",
+				"shorts/attempt2/stability.tex"
+			],
+			[
+				"introt",
+				"shorts/attempt2/intro.tex"
+			],
+			[
+				"intro.t",
+				"shorts/attempt2/intro.tex"
+			],
+			[
+				"int",
+				"introduction.tex"
+			],
+			[
+				"spbib",
+				"sppool.bib"
+			],
+			[
+				"st",
+				"shorts/attempt2/stability.tex"
+			],
+			[
+				"at2tex",
+				"shorts/2015-04-13-icap-attempt2.tex"
+			],
+			[
+				"comt",
+				"shorts/common.tex"
+			],
+			[
+				".giti",
+				".gitignore"
+			],
+			[
+				"ashpp",
+				"src/audio/audio_system.hpp"
+			]
+		],
+		"width": 0.0
+	},
+	"select_project":
+	{
+		"height": 500.0,
+		"last_filter": "",
+		"selected_items":
+		[
+			[
+				"",
+				"~/Documents/Git/ury-playd/ury-playd.sublime-project"
+			]
+		],
+		"width": 380.0
+	},
+	"select_symbol":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"selected_group": 0,
+	"settings":
+	{
+	},
+	"show_minimap": true,
+	"show_open_files": false,
+	"show_tabs": true,
+	"side_bar_visible": false,
+	"side_bar_width": 213.0,
+	"status_bar_visible": true,
+	"template_settings":
+	{
+	}
+}

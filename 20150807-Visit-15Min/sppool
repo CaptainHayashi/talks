@@ -1,0 +1,31 @@
+// INSERT OMIT
+  Node push(Element element) {
+    Node newNode = createNode(element=element, taken=false);
+    newNode.next = top;
+    top = newNode; // HL
+    /* ... compression ... */
+    return newNode;
+  }
+// END INSERT OMIT
+
+// GETYOUNGEST OMIT
+  <Node, Node> getYoungest() {
+    Node oldTop = top;
+    Node result = top; // HL
+    while (true) {
+      if (!result.taken) return <result, oldTop>; // HL
+      else if (result.next = result) return <NULL, oldTop>;
+      result = result.next;
+    }
+  }
+// END GETYOUNGEST OMIT
+
+// REMOVE OMIT
+  <Bool, Element> remove(Node oldTop, Node node) {
+    if (CAS(node.taken, false, true)) { // HL
+      /* ... compression ... */
+      return <true, node.element>;
+    }
+    return <false, NULL>;
+  }
+// END REMOVE OMIT
